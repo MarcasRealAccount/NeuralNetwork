@@ -4,7 +4,7 @@ workspace("NeuralNetwork")
 	
 	cppdialect("C++17")
 	cdialect("C11")
-	exceptionhandling("Off")
+	exceptionhandling("On")
 	flags({ "MultiProcessorCompile" })
 	rtti("Off")
 	warnings("Off")
@@ -39,11 +39,26 @@ workspace("NeuralNetwork")
 		debugenvs({ "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../%{OUTDIR}" })
 	
 	filter({})
-
+	
+	group("Libs")
+project("Armadillo")
+	kind("StaticLib")
+	location("libs")
+	
+	includedirs({ "libs/armadillo/include" })
+	files({ "libs/armadillo/src/**", "libs/armadillo/include/**" })
+	
+	group("")
 project("NeuralNetwork")
 	kind("ConsoleApp")
 	debugdir("run/")
 	os.mkdir("run/")
 	
 	includedirs({ "src/" })
+	sysincludedirs({ "libs/armadillo/include" })
 	files({ "src/**" })
+	
+	links({ "Armadillo" })
+	
+workspace("NeuralNetwork")
+	startproject("NeuralNetwork")

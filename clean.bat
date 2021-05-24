@@ -12,12 +12,12 @@ set "cleanBatchDir=%~dp0"
 call :DeleteDir !cleanBatchDir!\.vs\
 call :DeleteDir !cleanBatchDir!\bin\
 call :DeleteDir !cleanBatchDir!\bin-int\
-call :DeleteFile !cleanBatchDir!\NeuralNetwork.sln
-call :DeleteFile !cleanBatchDir!\NeuralNetwork.vcxproj
-call :DeleteFile !cleanBatchDir!\NeuralNetwork.vcxproj.filter
-call :DeleteFile !cleanBatchDir!\NeuralNetwork.vcxproj.user
+call :DeleteFile !cleanBatchDir!\*.sln
+call :DeleteFile !cleanBatchDir!\*.vcxproj
+call :DeleteFile !cleanBatchDir!\*.vcxproj.*
 call :DeleteFile !cleanBatchDir!\Makefile
-call :DeleteFile !cleanBatchDir!\NeuralNetwork.make
+call :DeleteFile !cleanBatchDir!\*.make
+call :DeleteFile !cleanBatchDir!\*\Makefile
 if "!cleanQuiet!"=="false" (
 	echo Finished cleanup
 )

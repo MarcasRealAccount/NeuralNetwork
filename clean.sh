@@ -32,12 +32,12 @@ CLEAN_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 deleteDir $CLEAN_PATH/.vs/
 deleteDir $CLEAN_PATH/bin/
 deleteDir $CLEAN_PATH/bin-int/
-deleteFile $CLEAN_PATH/NeuralNetwork.sln
-deleteFile $CLEAN_PATH/NeuralNetwork.vcxproj
-deleteFile $CLEAN_PATH/NeuralNetwork.vcxproj.filter
-deleteFile $CLEAN_PATH/NeuralNetwork.vcxproj.user
+deleteFile $CLEAN_PATH/*.sln
+deleteFile $CLEAN_PATH/*.vcxproj
+deleteFile $CLEAN_PATH/*.vcxproj.*
 deleteFile $CLEAN_PATH/Makefile
-deleteFile $CLEAN_PATH/NeuralNetwork.make
+deleteFile $CLEAN_PATH/*.make
+deleteFile $CLEAN_PATH/*/Makefile
 if [ "$CLEAN_QUIET" == "false" ]; then
 	echo Finished cleanup
 fi

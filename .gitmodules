@@ -1,0 +1,3 @@
+[submodule "libs/armadillo"]
+	path = libs/armadillo
+	url = https://github.com/christopher-besch/armadillo_fork.git

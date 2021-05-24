@@ -1,7 +1,11 @@
 .vs/
 *.sln
 *.vcxproj
-*.vcxproj.filer
-*.vcxproj.user
+*.vcxproj.*
+
+Makefile
+*/Makefile
+*.make
+
 bin/
 bin-int/
