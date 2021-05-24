@@ -5,7 +5,7 @@
 #include <sstream>
 
 Network::Network(const std::vector<size_t>& sizes, SigmoidFunc sigmoidFunction)
-    : numLayers(sizes.size()), sizes(sizes), biases(sizes.size() - 1), weights(sizes.size() - 1), sigmoidFunction(sigmoidFunction)
+    : numLayers(sizes.size()), sizes(sizes), biases(sizes.size() - 1), weights(sizes.size() - 1), sigmoidFunction(sigmoidFunction), numTest(0)
 {
 	for (size_t i = 1; i < sizes.size(); i++)
 	{
@@ -29,14 +29,65 @@ arma::fmat& Network::feedforward(arma::fmat& a)
 void Network::stochasticGradientDescent(std::vector<std::pair<arma::fvec, arma::fvec>>& trainingData, size_t epochs, size_t miniBatchSize, float learningRate, const std::vector<std::pair<arma::fvec, arma::fvec>>& testData)
 {
 	if (!testData.empty())
-	{
-	}
+		numTest = testData.size();
 
 	size_t n = trainingData.size();
 	for (size_t j = 0; j < epochs; j++)
 	{
-		std::shuffle(trainingData.begin(), trainingData.end(), std::mt19937_64 {});
+		std::shuffle(trainingData.begin(), trainingData.end(), std::mt19937 {});
+
+		for (size_t i = 0; i < n; i += miniBatchSize)
+			updateMiniBatch(trainingData, i, miniBatchSize, learningRate);
+
+		std::ostringstream str;
+		if (!testData.empty())
+			str << "Epoch " << j << ": " << evaluate(testData) << " / " << numTest;
+		else
+			str << "Epoch " << j << ": complete";
+		str << std::endl;
+		std::cout << str.str();
 	}
+}
+
+void Network::updateMiniBatch(const std::vector<std::pair<arma::fvec, arma::fvec>>& trainingData, size_t offset, size_t length, float learningRate)
+{
+	std::vector<arma::fmat> sgb(numLayers - 1);
+	std::vector<arma::fmat> sgw(numLayers - 1);
+	for (size_t i = 0; i < numLayers - 1; i++)
+	{
+		sgb[i] = arma::fmat(biases[i].n_rows, biases[i].n_cols, arma::fill::zeros);
+		sgw[i] = arma::fmat(weights[i].n_rows, weights[i].n_cols, arma::fill::zeros);
+	}
+
+	size_t usedLength     = std::min(length, trainingData.size() - offset);
+	float  learningFactor = learningRate / usedLength;
+	for (size_t i = offset; i < offset + usedLength; i++)
+	{
+		auto& [x, y] = trainingData[i];
+
+		auto [deltaSgb, deltaSgw] = backpropagate(x, y);
+		for (size_t i = 0; i < numLayers - 1; i++)
+		{
+			sgb[i] += deltaSgb[i];
+			sgw[i] += deltaSgw[i];
+		}
+	}
+
+	for (size_t i = 0; i < numLayers - 1; i++)
+	{
+		biases[i] -= learningFactor * sgb[i];
+		weights[i] -= learningFactor * sgw[i];
+	}
+}
+
+std::pair<std::vector<arma::fmat>, std::vector<arma::fmat>> Network::backpropagate(const arma::fvec& input, const arma::fvec& expectedResult)
+{
+	return {};
+}
+
+size_t Network::evaluate(const std::vector<std::pair<arma::fvec, arma::fvec>>& testData)
+{
+	return 0;
 }
 
 arma::fvec defaultSigmoid(const arma::fvec& z)
