@@ -19,7 +19,7 @@ int main(int argc, char** argv)
 		size_t miniBatchSize = 10;
 		float  learningRate  = 3.0f;
 
-		network.stochasticGradientDescent(trainingData, epochs, miniBatchSize, learningRate, testData);
+		network.stochasticGradientDescent(trainingData, epochs, miniBatchSize, learningRate, testData, true);
 
 		return EXIT_SUCCESS;
 	}

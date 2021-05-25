@@ -7,9 +7,10 @@
 Network::Network(const std::vector<size_t>& sizes, SigmoidFunc sigmoidFunction)
     : numLayers(sizes.size()), sizes(sizes), biases(sizes.size() - 1), weights(sizes.size() - 1), sigmoidFunction(sigmoidFunction), numTest(0)
 {
+	arma::arma_rng::set_seed(rng());
 	for (size_t i = 1; i < sizes.size(); i++)
 	{
-		biases[i - 1]  = arma::fmat(sizes[i], 1, arma::fill::randn);
+		biases[i - 1]  = arma::fvec(sizes[i], arma::fill::randn);
 		weights[i - 1] = arma::fmat(sizes[i], sizes[i - 1], arma::fill::randn);
 	}
 }
@@ -21,7 +22,7 @@ arma::fvec& Network::feedforward(arma::fvec& a)
 	return a;
 }
 
-void Network::stochasticGradientDescent(std::vector<std::pair<arma::fvec, arma::fvec>>& trainingData, size_t epochs, size_t miniBatchSize, float learningRate, const std::vector<std::pair<arma::fvec, arma::fvec>>& testData)
+void Network::stochasticGradientDescent(std::vector<std::pair<arma::fvec, arma::fvec>>& trainingData, size_t epochs, size_t miniBatchSize, float learningRate, const std::vector<std::pair<arma::fvec, arma::fvec>>& testData, bool clasify)
 {
 	if (!testData.empty())
 		numTest = testData.size();
@@ -29,39 +30,45 @@ void Network::stochasticGradientDescent(std::vector<std::pair<arma::fvec, arma::
 	size_t n = trainingData.size();
 	for (size_t j = 0; j < epochs; j++)
 	{
-		std::shuffle(trainingData.begin(), trainingData.end(), std::mt19937 {});
+		std::shuffle(trainingData.begin(), trainingData.end(), rng);
 
 		for (size_t i = 0; i < n; i += miniBatchSize)
 			updateMiniBatch(trainingData, i, miniBatchSize, learningRate);
 
 		std::ostringstream str;
 		if (!testData.empty())
-			str << "Epoch " << j << ": " << (evaluate(testData) * numTest) << " / " << numTest;
+		{
+			if (clasify)
+				str << "Epoch " << j << ": " << evaluateClassification(testData) << " / " << numTest << "\n";
+			else
+				str << "Epoch " << j << ": " << (evaluate(testData) * 100) << "% of " << numTest << " tests\n";
+		}
 		else
-			str << "Epoch " << j << ": complete";
-		str << std::endl;
+		{
+			str << "Epoch " << j << ": complete\n";
+		}
 		std::cout << str.str();
 	}
 }
 
 void Network::updateMiniBatch(const std::vector<std::pair<arma::fvec, arma::fvec>>& trainingData, size_t offset, size_t length, float learningRate)
 {
-	std::vector<arma::fmat> sgb(numLayers - 1);
+	std::vector<arma::fvec> sgb(numLayers - 1);
 	std::vector<arma::fmat> sgw(numLayers - 1);
 	for (size_t i = 0; i < numLayers - 1; i++)
 	{
-		sgb[i] = arma::fmat(biases[i].n_rows, biases[i].n_cols, arma::fill::zeros);
+		sgb[i] = arma::fvec(biases[i].n_rows, arma::fill::zeros);
 		sgw[i] = arma::fmat(weights[i].n_rows, weights[i].n_cols, arma::fill::zeros);
 	}
 
-	size_t usedLength     = std::min(length, trainingData.size() - offset);
-	float  learningFactor = learningRate / usedLength;
+	size_t usedLength = std::min(length, trainingData.size() - offset);
 	for (size_t i = offset; i < offset + usedLength; i++)
 	{
 		auto& [x, y] = trainingData[i];
 		backpropagate(x, y, sgb, sgw);
 	}
 
+	float learningFactor = learningRate / usedLength;
 	for (size_t i = 0; i < numLayers - 1; i++)
 	{
 		biases[i] -= learningFactor * sgb[i];
@@ -69,38 +76,53 @@ void Network::updateMiniBatch(const std::vector<std::pair<arma::fvec, arma::fvec
 	}
 }
 
-void Network::backpropagate(const arma::fvec& input, const arma::fvec& expectedResult, std::vector<arma::fmat>& sgb, std::vector<arma::fmat>& sgw)
+template <class T>
+auto& indexNegativeAllowed(const T& t, ptrdiff_t index)
+{
+	if (index < 0)
+		return t[t.size() + index];
+	else
+		return t[index];
+}
+
+template <class T>
+auto& indexNegativeAllowed(T& t, ptrdiff_t index)
+{
+	if (index < 0)
+		return t[t.size() + index];
+	else
+		return t[index];
+}
+
+void Network::backpropagate(const arma::fvec& input, const arma::fvec& expectedResult, std::vector<arma::fvec>& sgb, std::vector<arma::fmat>& sgw)
 {
 	arma::fvec              activation = input;
 	std::vector<arma::fvec> activations(numLayers);
 	activations[0] = input;
 	std::vector<arma::fvec> zs(numLayers - 1);
 	for (size_t i = 0; i < numLayers - 1; i++)
-	{
 		activations[i + 1] = activation = sigmoidFunction(zs[i] = weights[i] * activation + biases[i]);
-	}
 
-	arma::fmat delta = costDerivative(activations[activations.size() - 1], expectedResult) * sigmoidPrime(zs[zs.size() - 1]);
+	arma::fvec delta = costDerivative(activations[activations.size() - 1], expectedResult) % sigmoidPrime(zs[zs.size() - 1]);
 	sgb[sgb.size() - 1] += delta;
 	sgw[sgw.size() - 1] += delta * activations[activations.size() - 2].t();
 
-	for (size_t li = numLayers - 2; li > 0; li--)
+	for (size_t l = 2; l < numLayers; l++)
 	{
-		size_t l = li - 1;
-		delta    = weights[l + 1].t() * delta * sigmoidPrime(zs[l]);
-		sgb[l] += delta;
-		sgw[l] += delta * activations[l - 1].t();
+		delta = (indexNegativeAllowed(weights, -l + 1).t() * delta) % sigmoidPrime(indexNegativeAllowed(zs, -l));
+		indexNegativeAllowed(sgb, -l) += delta;
+		indexNegativeAllowed(sgw, -l) += delta * indexNegativeAllowed(activations, -l - 1).t();
 	}
 }
 
-arma::fmat Network::costDerivative(const arma::fvec& result, const arma::fvec& expectedResult)
+arma::fvec Network::costDerivative(const arma::fvec& result, const arma::fvec& expectedResult)
 {
 	return result - expectedResult;
 }
 
 arma::fvec Network::sigmoidPrime(const arma::fvec& z) const
 {
-	return sigmoidFunction(z) * (1 - sigmoidFunction(z));
+	return sigmoidFunction(z) % (1 - sigmoidFunction(z));
 }
 
 float Network::evaluate(const std::vector<std::pair<arma::fvec, arma::fvec>>& testData)
@@ -114,8 +136,41 @@ float Network::evaluate(const std::vector<std::pair<arma::fvec, arma::fvec>>& te
 		for (size_t i = 0; i < input.n_rows; i++)
 			error += std::abs(y[i] - input[i]);
 		error /= input.n_rows;
+		totalError += error;
 	}
 	return 1.0f - (totalError / testData.size());
+}
+
+size_t Network::evaluateClassification(const std::vector<std::pair<arma::fvec, arma::fvec>>& testData)
+{
+	size_t sum = 0;
+	for (auto& [x, y] : testData)
+	{
+		arma::fvec input = x;
+		feedforward(input);
+
+		size_t largestResultIndex         = -1;
+		size_t largestExpectedResultIndex = -1;
+		float  largestResult              = -std::numeric_limits<float>::max();
+		float  largestExpectedResult      = -std::numeric_limits<float>::max();
+		for (size_t i = 0; i < input.n_rows; i++)
+		{
+			float result         = input[i];
+			float expectedResult = y[i];
+			if (result > largestResult)
+			{
+				largestResult      = result;
+				largestResultIndex = i;
+			}
+			if (expectedResult > largestExpectedResult)
+			{
+				largestExpectedResult      = expectedResult;
+				largestExpectedResultIndex = i;
+			}
+		}
+		sum += largestResultIndex == largestExpectedResultIndex;
+	}
+	return sum;
 }
 
 arma::fvec defaultSigmoid(const arma::fvec& z)
