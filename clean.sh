@@ -13,31 +13,41 @@ do
 		CLEAN_QUIET="true"
 	fi
 done
+CLEAN_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+cd $CLEAN_PATH
 
 function deleteDir {
-	if [ "$CLEAN_QUIET" == "false" ]; then
-		echo Deleting \"$1\"
+	if [ -d "$1" ]; then
+		for d in $(find . -type d -name $1)
+		do
+			if [ "$CLEAN_QUIET" == "false" ]; then
+				echo Deleting \"$d\"
+			fi
+			rm -r -f "$d" >/dev/null 2>&1
+		done
 	fi
-	rm -r -f "$1" >/dev/null 2>&1
 }
 
-function deleteFile {
-	if [ "$CLEAN_QUIET" == "false" ]; then
-		echo Deleting \"$1\"
-	fi
-	rm -f "$1" >/dev/null 2>&1
+function deleteFiles {
+	for d in $(find . -name $1)
+	do
+		if [[ $d != *"armadillo/examples"* ]]; then
+			if [ "$CLEAN_QUIET" == "false" ]; then
+				echo Deleting \"$d\"
+			fi
+			rm -f "$d" >/dev/null 2>&1
+		fi
+	done
 }
 
-CLEAN_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-deleteDir $CLEAN_PATH/.vs/
-deleteDir $CLEAN_PATH/bin/
-deleteDir $CLEAN_PATH/bin-int/
-deleteFile $CLEAN_PATH/*.sln
-deleteFile $CLEAN_PATH/*.vcxproj
-deleteFile $CLEAN_PATH/*.vcxproj.*
-deleteFile $CLEAN_PATH/Makefile
-deleteFile $CLEAN_PATH/*.make
-deleteFile $CLEAN_PATH/*/Makefile
+deleteDir .vs
+deleteDir bin
+deleteDir bin-int
+deleteFiles *.sln
+deleteFiles *.vcxproj
+deleteFiles *.vcxproj.*
+deleteFiles Makefile
+deleteFiles *.make
 if [ "$CLEAN_QUIET" == "false" ]; then
 	echo Finished cleanup
 fi

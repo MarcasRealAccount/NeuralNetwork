@@ -8,34 +8,51 @@ REM
 set "cleanQuiet=false"
 call :HandleBatchArguments :HandleArg %*
 
-set "cleanBatchDir=%~dp0"
-call :DeleteDir !cleanBatchDir!\.vs\
-call :DeleteDir !cleanBatchDir!\bin\
-call :DeleteDir !cleanBatchDir!\bin-int\
-call :DeleteFile !cleanBatchDir!\*.sln
-call :DeleteFile !cleanBatchDir!\*.vcxproj
-call :DeleteFile !cleanBatchDir!\*.vcxproj.*
-call :DeleteFile !cleanBatchDir!\Makefile
-call :DeleteFile !cleanBatchDir!\*.make
-call :DeleteFile !cleanBatchDir!\*\Makefile
+set "BatchDir=%~dp0"
+cd /D "!BatchDir!"
+call :DeleteDir .vs\
+call :DeleteDir bin\
+call :DeleteDir bin-int\
+call :DeleteFiles *.sln
+call :DeleteFiles *.vcxproj
+call :DeleteFiles *.vcxproj.*
+call :DeleteFiles Makefile
+call :DeleteFiles *.make
 if "!cleanQuiet!"=="false" (
 	echo Finished cleanup
 )
 exit /b 0
 
 :DeleteDir
-if "!cleanQuiet!"=="false" (
-	echo Deleting "%*"
+if exist "%*" (
+	set "DeleteDir_a=!BatchDir!%*"
+	if "!cleanQuiet!"=="false" echo Deleting "!DeleteDir_a!"
+	rmdir /s /q "!DeleteDir_a!" >nul 2>&1
 )
-rmdir /s /q "%*" >nul 2>&1
 exit /b 0
 
-:DeleteFile
-if "!cleanQuiet!"=="false" (
-	echo Deleting "%*"
+:DeleteFiles
+for /r %%f in (%*) do (
+	if exist "%%f" (
+		set "DeleteFiles_a=%%f"
+		call :CanDeleteFile !DeleteFiles_a!
+		if ERRORLEVEL 1 (
+			if "!cleanQuiet!"=="false" echo Deleting "!DeleteFiles_a!"
+			del /q "!DeleteFiles_a!" >nul 2>&1
+		)
+	)
 )
-del /q "%*" >nul 2>&1
 exit /b 0
+
+:CanDeleteFile
+set "CanDeleteFile_a=%*"
+if not "x!CanDeleteFile_a:.git=!"=="x!CanDeleteFile_a!" (
+	exit /b 0
+)
+if not "x!CanDeleteFile_a:armadillo\examples=!"=="x!CanDeleteFile_a!" (
+	exit /b 0
+)
+exit /b 1
 
 :HandleArg
 if "%*"=="/q" (
