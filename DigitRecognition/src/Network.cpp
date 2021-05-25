@@ -14,15 +14,10 @@ Network::Network(const std::vector<size_t>& sizes, SigmoidFunc sigmoidFunction)
 	}
 }
 
-arma::fmat& Network::feedforward(arma::fmat& a)
+arma::fvec& Network::feedforward(arma::fvec& a)
 {
 	for (size_t i = 0; i < numLayers - 1; i++)
-	{
-		arma::fmat& b = biases[i];
-		arma::fmat& w = weights[i];
-
-		a = sigmoidFunction(w * a + b);
-	}
+		a = sigmoidFunction(weights[i] * a + biases[i]);
 	return a;
 }
 
@@ -41,7 +36,7 @@ void Network::stochasticGradientDescent(std::vector<std::pair<arma::fvec, arma::
 
 		std::ostringstream str;
 		if (!testData.empty())
-			str << "Epoch " << j << ": " << evaluate(testData) << " / " << numTest;
+			str << "Epoch " << j << ": " << (evaluate(testData) * numTest) << " / " << numTest;
 		else
 			str << "Epoch " << j << ": complete";
 		str << std::endl;
@@ -64,13 +59,7 @@ void Network::updateMiniBatch(const std::vector<std::pair<arma::fvec, arma::fvec
 	for (size_t i = offset; i < offset + usedLength; i++)
 	{
 		auto& [x, y] = trainingData[i];
-
-		auto [deltaSgb, deltaSgw] = backpropagate(x, y);
-		for (size_t i = 0; i < numLayers - 1; i++)
-		{
-			sgb[i] += deltaSgb[i];
-			sgw[i] += deltaSgw[i];
-		}
+		backpropagate(x, y, sgb, sgw);
 	}
 
 	for (size_t i = 0; i < numLayers - 1; i++)
@@ -80,14 +69,53 @@ void Network::updateMiniBatch(const std::vector<std::pair<arma::fvec, arma::fvec
 	}
 }
 
-std::pair<std::vector<arma::fmat>, std::vector<arma::fmat>> Network::backpropagate(const arma::fvec& input, const arma::fvec& expectedResult)
+void Network::backpropagate(const arma::fvec& input, const arma::fvec& expectedResult, std::vector<arma::fmat>& sgb, std::vector<arma::fmat>& sgw)
 {
-	return {};
+	arma::fvec              activation = input;
+	std::vector<arma::fvec> activations(numLayers);
+	activations[0] = input;
+	std::vector<arma::fvec> zs(numLayers - 1);
+	for (size_t i = 0; i < numLayers - 1; i++)
+	{
+		activations[i + 1] = activation = sigmoidFunction(zs[i] = weights[i] * activation + biases[i]);
+	}
+
+	arma::fmat delta = costDerivative(activations[activations.size() - 1], expectedResult) * sigmoidPrime(zs[zs.size() - 1]);
+	sgb[sgb.size() - 1] += delta;
+	sgw[sgw.size() - 1] += delta * activations[activations.size() - 2].t();
+
+	for (size_t li = numLayers - 2; li > 0; li--)
+	{
+		size_t l = li - 1;
+		delta    = weights[l + 1].t() * delta * sigmoidPrime(zs[l]);
+		sgb[l] += delta;
+		sgw[l] += delta * activations[l - 1].t();
+	}
 }
 
-size_t Network::evaluate(const std::vector<std::pair<arma::fvec, arma::fvec>>& testData)
+arma::fmat Network::costDerivative(const arma::fvec& result, const arma::fvec& expectedResult)
 {
-	return 0;
+	return result - expectedResult;
+}
+
+arma::fvec Network::sigmoidPrime(const arma::fvec& z) const
+{
+	return sigmoidFunction(z) * (1 - sigmoidFunction(z));
+}
+
+float Network::evaluate(const std::vector<std::pair<arma::fvec, arma::fvec>>& testData)
+{
+	float totalError = 0.0f;
+	for (auto& [x, y] : testData)
+	{
+		float      error = 0.0f;
+		arma::fvec input = x;
+		feedforward(input);
+		for (size_t i = 0; i < input.n_rows; i++)
+			error += std::abs(y[i] - input[i]);
+		error /= input.n_rows;
+	}
+	return 1.0f - (totalError / testData.size());
 }
 
 arma::fvec defaultSigmoid(const arma::fvec& z)

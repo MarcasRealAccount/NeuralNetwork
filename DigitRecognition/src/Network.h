@@ -22,15 +22,19 @@ private:
 public:
 	Network(const std::vector<size_t>& sizes, SigmoidFunc sigmoidFunction);
 
-	arma::fmat& feedforward(arma::fmat& a);
+	arma::fvec& feedforward(arma::fvec& a);
 
 	void stochasticGradientDescent(std::vector<std::pair<arma::fvec, arma::fvec>>& trainingData, size_t epochs, size_t miniBatchSize, float learningRate, const std::vector<std::pair<arma::fvec, arma::fvec>>& testData = {});
 
 	void updateMiniBatch(const std::vector<std::pair<arma::fvec, arma::fvec>>& trainingData, size_t offset, size_t length, float learningRate);
 
-	std::pair<std::vector<arma::fmat>, std::vector<arma::fmat>> backpropagate(const arma::fvec& input, const arma::fvec& expectedResult);
+	void backpropagate(const arma::fvec& input, const arma::fvec& expectedResult, std::vector<arma::fmat>& sgb, std::vector<arma::fmat>& sgw);
 
-	size_t evaluate(const std::vector<std::pair<arma::fvec, arma::fvec>>& testData);
+	arma::fmat costDerivative(const arma::fvec& result, const arma::fvec& expectedResult);
+
+	arma::fvec sigmoidPrime(const arma::fvec& z) const;
+
+	float evaluate(const std::vector<std::pair<arma::fvec, arma::fvec>>& testData);
 
 	friend std::ostream& operator<<(std::ostream& stream, const Network& network);
 };
